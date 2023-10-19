@@ -49,5 +49,5 @@ logs can be seen in syslog:
 process has name my_daemon_<pid>  
 all logs are written in CAPS (e.g. DAEMON LAUNCHED or DAEMON KILLED)  
 
-folders 1, 2 and 3:
+folders 1, 2 and 3:  
 consist testing files that must move due to daemon functionality
