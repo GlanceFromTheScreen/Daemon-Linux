@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <vector>
 #include <variant>
+#include <csignal>
 
 class Daemon {
 public:
@@ -20,7 +21,7 @@ public:
         return instance;
     }
 
-    std::vector<std::string> read_config() {
+    static void read_config() {
         std::string filename = "config.txt";
         std::ifstream file(filename);
 
@@ -34,7 +35,38 @@ public:
                 config_data.push_back(line);
             }
             file.close();
-            return config_data;
+            data = config_data;
+        }
+    }
+
+    static double read_pid() {
+        std::string filename = "pid.txt";
+        std::ifstream file(filename);
+
+        if (!file.is_open()) {
+            // error to syslog
+        }
+        else {
+            std::string line;
+            if (!std::getline(file, line)) {
+                file.close();
+                return -1;
+            }
+            file.close();
+            return std::stod(line);
+        }
+    }
+
+    static void write_pid(std::string out_pid) {
+        std::string filePath = "pid.txt";
+        std::ofstream outputFile(filePath, std::ios::trunc);
+
+        if (outputFile.is_open()) {
+            // Записываем данные в файл
+            outputFile << out_pid;
+            outputFile.close();
+        } else {
+            //  ...
         }
     }
 
@@ -63,42 +95,73 @@ public:
         } catch (const std::filesystem::filesystem_error& e) {
             syslog(LOG_INFO, "ERROR WITH OPENING THE DIRECTORY");
         }
+    } 
+
+    bool check_if_process_exists(pid_t pid) {
+        std::string path = "/proc/" + std::to_string(pid);
+        std::ifstream dir(path);
+        if (dir) {return true;}
+        return false;
     }
 
-    
+    static void sighup_handler(int signal_number) {
+        read_config();
+    }
 
-    void folders_processing() {
+    static void sigterm_handler(int signal_number) {
+        is_it_time_to_finish = 1;
+    }
 
-        std::vector<std::string> data = read_config();
-        std::string in = data[0];
-        std::string out = data[1];
-        double time1 = std::stod(data[2]);
-        double time2 = std::stod(data[3]);
+
+
+    bool reset_new_process() {
+        double ex_pid = read_pid();
+        if (!check_if_process_exists(ex_pid)) {
+            return 1;  // process does not exist => ok
+        }
+        //  finish prev process
+        int response = kill(ex_pid, SIGTERM);
+        if (response == 0) {return 1;}  // ex process is killed
+        else {return 0;}
+    }
+
+    void daemon_launch() {
+
+        if (!reset_new_process()) {
+            syslog(LOG_INFO, "ERROR IN KILLING (EX)PROCESS");
+            return;
+        }
+        write_pid(std::to_string(getpid()));
+        read_config();
 
         int i = 0;
-        openlog("my_daemon_5005", LOG_PID, LOG_DAEMON);
-        while (i < 5) {
-            move_files(in, out, time1, 1);
-            move_files(out, in, time2, -1);  // if a > b => -a < -b 
-            // пробегаемся по каталогу 2, перемещаем файлы в каталог 2
-            // syslog(LOG_INFO, данные перемещены);
-            
-            //syslog(LOG_INFO, data[0].c_str());
+        std::string process_name = "my_daemon_" + std::to_string(getpid());
+        openlog(process_name.c_str(), LOG_PID, LOG_DAEMON);
+        while (i < 20 && is_it_time_to_finish == 0) {
+
+            move_files(data[0], data[1], std::stod(data[2]), 1);
+            move_files(data[1], data[0], std::stod(data[3]), -1);  // if a > b => -a < -b 
+
+            signal(SIGHUP, sighup_handler);
+            signal(SIGTERM, sigterm_handler);
+
             // Ожидаем 5 секунд
             std::this_thread::sleep_for(std::chrono::seconds(5));
             i++;
         }
         closelog();
+        syslog(LOG_INFO, "DAEMON KILLED");
     }
 
 private:
-    static bool is_valid;
+    static inline std::vector<std::string> data = {};
+    static inline bool is_it_time_to_finish = 0;
     Daemon() {
+        data = {};
         pid_t pid = fork();
-        if (pid < 0) {}  // is_valid = false; tracking an error in fork function
+        if (pid < 0) {}  
         else if (pid > 0) {exit(0);}  // exit parent process
         else {  //  now we are in child process
-            // is_valid = 1;
             prctl(PR_SET_NAME, "dmn1", 0, 0, 0);
             umask(0);
             
@@ -119,6 +182,6 @@ private:
 
 int main() {
     Daemon& my_daemon = Daemon::get_instance();
-    my_daemon.folders_processing();
+    my_daemon.daemon_launch();
     return 0;
 }
