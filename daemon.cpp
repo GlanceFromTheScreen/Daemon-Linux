@@ -19,7 +19,7 @@
 Daemon::Daemon() {
     data = {};
     pid_t pid = fork();
-    if (pid < 0) {}  
+    if (pid < 0) {exit(0);}  // exit child process if it wasn't created
     else if (pid > 0) {exit(0);}  // exit parent process
     else {  //  now we are in child process
         prctl(PR_SET_NAME, "dmn1", 0, 0, 0);
