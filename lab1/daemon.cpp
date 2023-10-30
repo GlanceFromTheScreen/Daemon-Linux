@@ -1,17 +1,12 @@
 #include "daemon.h"
-#include <iostream>
 #include <fstream>
 #include <chrono>
-#include <ctime>
 #include <thread>
-#include <cstdlib>
-#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/prctl.h>
 #include <syslog.h>
 #include <filesystem>
-#include <vector>
 #include <variant>
 #include <csignal>
 
@@ -19,7 +14,7 @@
 Daemon::Daemon() {
     data = {};
     pid_t pid = fork();
-    if (pid < 0) {exit(0);}  // exit child process if it wasn't created
+    if (pid < 0) {exit(1);}  
     else if (pid > 0) {exit(0);}  // exit parent process
     else {  //  now we are in child process
         prctl(PR_SET_NAME, "dmn1", 0, 0, 0);
@@ -54,10 +49,18 @@ void Daemon::daemon_launch() {
         return;
     }
     
-
     std::string process_name = "my_daemon_" + std::to_string(getpid());
     openlog(process_name.c_str(), LOG_PID, LOG_DAEMON);
     syslog(LOG_INFO, "DAEMON LAUNCHED");
+
+    // asinc methods sigaction (from csignal) provides instant signals processing
+    struct sigaction sa_term;
+    sa_term.sa_handler = sigterm_handler;
+    sigaction(SIGTERM, &sa_term, nullptr);
+
+    struct sigaction sa_hup;
+    sa_hup.sa_handler = sigterm_handler;
+    sigaction(SIGTERM, &sa_hup, nullptr);
 
     // Main Loop
     while (is_it_time_to_finish == 0) {  // while no commands recieved from SIGTERM
@@ -66,15 +69,11 @@ void Daemon::daemon_launch() {
         move_files(data[0], data[1], std::stod(data[2]), 1);
         move_files(data[1], data[0], std::stod(data[3]), -1);  // if a > b => -a < -b 
 
-        // check if signals came
-        signal(SIGHUP, sighup_handler);  // reread config
-        signal(SIGTERM, sigterm_handler);  // kill daemon
-
-        // Wait 30 sec
-        std::this_thread::sleep_for(std::chrono::seconds(30));
+        // Wait 30 sec or until signal comes and changes is_it_time_to_finish
+        clever_sleep(); 
     }
-    closelog();
     syslog(LOG_INFO, "DAEMON KILLED");
+    closelog();
 }
 
 
@@ -189,5 +188,14 @@ bool Daemon::reset_new_process() {
     int response = kill(ex_pid, SIGTERM);
     if (response == 0) {return 1;}  // ex process is killed
     else {return 0;}
+}
+
+
+void Daemon::clever_sleep() {
+    int i = 0;
+    while (i < 30 && is_it_time_to_finish == 0) {
+        i++;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 }
 

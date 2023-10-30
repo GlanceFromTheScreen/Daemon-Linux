@@ -31,6 +31,8 @@ private:
     // next 2 functions are run in the begining of demon launching
     bool check_if_process_exists(pid_t pid);  // prevents 2 deamons running (looks for folder <pid> in /proc/)
     bool reset_new_process();
+
+    void clever_sleep();
     
     // signals processing
     static void sigterm_handler(int signal_number);
