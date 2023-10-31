@@ -13,6 +13,7 @@ public:
 private:
     static inline std::vector<std::string> data = {};  // data written from config.txt
     static inline bool is_it_time_to_finish = 0;  // catches SIGTERM signal
+    static inline std::string pid_file_path = "/var/run/my_daemon.pid";
 
     Daemon();
     ~Daemon() {}
@@ -23,6 +24,7 @@ private:
     static bool read_config();
     static double read_pid();
     static bool write_pid(std::string out_pid);
+    static void delete_pid_file_if_last();
 
     // main functionality
     void move_files(std::string& source, std::string& target, double time, int sign);

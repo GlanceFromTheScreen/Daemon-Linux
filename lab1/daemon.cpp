@@ -72,6 +72,7 @@ void Daemon::daemon_launch() {
         // Wait 30 sec or until signal comes and changes is_it_time_to_finish
         clever_sleep(); 
     }
+    delete_pid_file_if_last();
     syslog(LOG_INFO, "DAEMON KILLED");
     closelog();
 }
@@ -98,10 +99,9 @@ bool Daemon::read_config() {
 
 
 double Daemon::read_pid() {
-    std::string filename = "/var/run/my_daemon.pid";
-    std::ifstream file(filename);
+    std::ifstream file(pid_file_path);
 
-    if (!std::filesystem::exists(filename)) {
+    if (!std::filesystem::exists(pid_file_path)) {
         return -1;  // the case when we run daemon at the first time
     }
     if (!file.is_open()) {
@@ -121,8 +121,7 @@ double Daemon::read_pid() {
 
 
 bool Daemon::write_pid(std::string out_pid) {
-    std::string filePath = "/var/run/my_daemon.pid";
-    std::ofstream outputFile(filePath, std::ios::trunc);  // clean file and then write
+    std::ofstream outputFile(pid_file_path, std::ios::trunc);  // clean file and then write
 
     if (outputFile.is_open()) {
         outputFile << out_pid;
@@ -130,6 +129,15 @@ bool Daemon::write_pid(std::string out_pid) {
         return true;
     } else {
         return false;
+    }
+}
+
+
+void Daemon::delete_pid_file_if_last() {
+    if (getpid() == read_pid()) {
+        if (std::remove(pid_file_path.c_str()) != 0) {
+                syslog(LOG_INFO, "ERROR IN DELETING PID FILE");
+    } 
     }
 }
 
