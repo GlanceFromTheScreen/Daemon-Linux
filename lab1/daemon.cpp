@@ -98,9 +98,12 @@ bool Daemon::read_config() {
 
 
 double Daemon::read_pid() {
-    std::string filename = "pid.txt";
+    std::string filename = "/var/run/my_daemon.pid";
     std::ifstream file(filename);
 
+    if (!std::filesystem::exists(filename)) {
+        return -1;  // the case when we run daemon at the first time
+    }
     if (!file.is_open()) {
         // 2nd error type (processed in reset_new_process method)
         return -2;  
@@ -118,7 +121,7 @@ double Daemon::read_pid() {
 
 
 bool Daemon::write_pid(std::string out_pid) {
-    std::string filePath = "pid.txt";
+    std::string filePath = "/var/run/my_daemon.pid";
     std::ofstream outputFile(filePath, std::ios::trunc);  // clean file and then write
 
     if (outputFile.is_open()) {
