@@ -9,22 +9,30 @@
 #include <filesystem>
 #include <variant>
 #include <csignal>
+#include <fcntl.h>
 
 
 Daemon::Daemon() {
     data = {};
+    config_file_path = realpath(config_file_path.c_str(), nullptr);
     pid_t pid = fork();
     if (pid < 0) {exit(1);}  
     else if (pid > 0) {exit(0);}  // exit parent process
     else {  //  now we are in child process
         prctl(PR_SET_NAME, "dmn1", 0, 0, 0);
+
         umask(0);
-        
+        setsid(); 
+
+        if (chdir("/") < 0) {exit(1);}
+
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
-        close(STDERR_FILENO);
+        close(STDERR_FILENO); 
 
-        setsid();  
+        open("/dev/null", O_RDONLY);
+        open("/dev/null", O_WRONLY);
+        open("/dev/null", O_WRONLY);
     }
 }
 
@@ -44,8 +52,9 @@ void Daemon::daemon_launch() {
         syslog(LOG_INFO, "DAEMON CANT WRITE PID IN PID FILE. EXIT.");
         return;
     }
+    // const char* aaa = config_file_path.c_str();
     if (!read_config()) {
-        syslog(LOG_INFO, "DAEMON CANT READ CONFIG FILE. EXIT.");
+        syslog(LOG_INFO, "DAEMON CANT READ CONFIG FILE. EXIT %s", config_file_path.c_str());
         return;
     }
     
@@ -59,8 +68,8 @@ void Daemon::daemon_launch() {
     sigaction(SIGTERM, &sa_term, nullptr);
 
     struct sigaction sa_hup;
-    sa_hup.sa_handler = sigterm_handler;
-    sigaction(SIGTERM, &sa_hup, nullptr);
+    sa_hup.sa_handler = sighup_handler;
+    sigaction(SIGHUP, &sa_hup, nullptr);
 
     // Main Loop
     while (is_it_time_to_finish == 0) {  // while no commands recieved from SIGTERM
@@ -79,8 +88,7 @@ void Daemon::daemon_launch() {
 
 
 bool Daemon::read_config() {
-    std::string filename = "config.txt";
-    std::ifstream file(filename);
+    std::ifstream file(config_file_path);
 
     if (!file.is_open()) {
         return false;
@@ -137,7 +145,7 @@ void Daemon::delete_pid_file_if_last() {
     if (getpid() == read_pid()) {
         if (std::remove(pid_file_path.c_str()) != 0) {
                 syslog(LOG_INFO, "ERROR IN DELETING PID FILE");
-    } 
+        } 
     }
 }
 

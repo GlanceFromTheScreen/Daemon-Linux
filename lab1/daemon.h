@@ -13,10 +13,12 @@ public:
 private:
     static inline std::vector<std::string> data = {};  // data written from config.txt
     static inline bool is_it_time_to_finish = 0;  // catches SIGTERM signal
+    static inline bool is_it_time_to_read_config = 0;  // catches SIGHUP signal
     static inline std::string pid_file_path = "/var/run/my_daemon.pid";
+    static inline std::string config_file_path = "config.txt";
 
     Daemon();
-    ~Daemon() {}
+    ~Daemon() {};
     Daemon(const Daemon&) = delete;
     Daemon& operator= (const Daemon&) = delete;
 
