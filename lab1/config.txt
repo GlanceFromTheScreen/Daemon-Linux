@@ -1,0 +1,4 @@
+/home/evgenii/Рабочий стол/Lab1/1
+/home/evgenii/Рабочий стол/Lab1/3
+500
+500
