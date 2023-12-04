@@ -30,12 +30,12 @@
 
 void FIFO::connOpen() {
     // Создаем именованный канал
-    char* FIFO_NAME = "FIFO2023";
+    char* FIFO_NAME = "FIFO_FILE";
 
     shared_variable = FIFO_NAME;
 
     unlink(FIFO_NAME);
-    if (mkfifo(FIFO_NAME, 0666) == -1) {
+    if (mkfifo(FIFO_NAME, S_IRWXU | S_IRWXG | S_IRWXO) == -1) {
         perror("mkfifo");
         exit(EXIT_FAILURE);
     }
@@ -44,7 +44,7 @@ void FIFO::connOpen() {
 void FIFO::connRead(bool is_host, std::ofstream* logFile) {
     int fd = open(shared_variable, O_RDONLY);
     if (fd == -1) {
-        perror("open");
+        perror("open r");
         exit(EXIT_FAILURE);
     }
 
@@ -77,9 +77,7 @@ void FIFO::connWrite(std::string answer) {
         perror("write");
         exit(EXIT_FAILURE);
     }
-
-    
-    
+        
 }
 
 void FIFO::connClose() {
@@ -90,5 +88,6 @@ void FIFO::connClose() {
     }
 
     close(fd);
+    unlink(shared_variable);
 }
 

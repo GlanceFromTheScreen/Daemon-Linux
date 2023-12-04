@@ -27,17 +27,27 @@
 
 
 void MQ::connOpen() {
-    char* QUEUE_NAME = "/my_message_queue";
+    char* QUEUE_NAME = "/my_message_queue317651";
     const int MAX_MSG_SIZE = 256;
-    const int QUEUE_PERMISSIONS = 0660;
+    const int QUEUE_PERMISSIONS = 0666;
+
+    mq_unlink(QUEUE_NAME);
 
     shared_variable = QUEUE_NAME;
-    mqd_t mq = mq_open(QUEUE_NAME, O_CREAT | O_RDWR, QUEUE_PERMISSIONS, nullptr);
+    mqd_t mq = mq_open(QUEUE_NAME, O_CREAT | O_RDWR | O_EXCL, QUEUE_PERMISSIONS, nullptr);
+
 
     if (mq == (mqd_t)-1) {
         perror("mq_open");
         exit(EXIT_FAILURE);
     }
+
+    // Очищаем очередь
+    // const char* message = "";
+    // if (mq_send(mq, message, strlen(message) + 1, 0) == -1) {
+    //     perror("mq_send");
+    //     exit(EXIT_FAILURE);
+    // }
 }
 
 void MQ::connRead(bool is_host, std::ofstream* logFile) {

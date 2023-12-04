@@ -10,7 +10,7 @@ void writeToLogFile(const std::string& message, std::ofstream& logFile) {
 
 
 bool check_file_for_updates(std::streampos& ex_pos, std::string& res) {
-    std::ifstream inputFile("myfile.txt");
+    std::ifstream inputFile("client_in.file");
     inputFile.seekg(0, std::ios::end);
 
     std::streampos tail = inputFile.tellg();
